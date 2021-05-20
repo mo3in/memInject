@@ -2,14 +2,10 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
-using Cocona;
 using Memory;
-using MemoryHijacking;
-using MemoryHijacking.Commands;
+using MemoryHijacking.Internal.Console;
 using Spectre.Console;
-using Spectre.Console.Cli;
 
 namespace MemoryHijacking
 {
@@ -33,7 +29,6 @@ namespace MemoryHijacking
 			if (!string.IsNullOrWhiteSpace(processQ))
 			{
 				var results = FindProcessesByQuery(processQ);
-				// AnsiConsole.MarkupLine(results.TxtQResult());
 
 				if (results.Length == 0)
 				{
@@ -41,23 +36,12 @@ namespace MemoryHijacking
 				}
 				else
 				{
-					selectedProcess = AnsiConsole.Prompt(
-						new SelectionPrompt<ProcessQResult>()
-							.Title(Txt.SelectProcessId.AsColor(StateColor.Info))
-							.MoreChoicesText(results.TxtTotalCount())
-							.PageSize(10)
-							.AddChoices(results.Select(x => x))
-					);
+					selectedProcess = Prompt.Choose(results.Select(x => x), Txt.SelectProcessId.AsColor(StateColor.Info));
 				}
 			}
 			else
 			{
-				selectedProcess = AnsiConsole.Prompt(
-					new SelectionPrompt<ProcessQResult>()
-						.Title(Txt.SelectProcessId.AsColor(StateColor.Info))
-						.PageSize(10)
-						.AddChoices(_processes.Select(x => new ProcessQResult(x.Id, x.ProcessName, 0, 0)))
-				);
+				selectedProcess = Prompt.Choose(_processes.Select(x => new ProcessQResult(x.Id, x.ProcessName, 0, 0)), Txt.SelectProcessId.AsColor(StateColor.Info));
 			}
 
 			if (selectedProcess == null)
@@ -69,14 +53,35 @@ namespace MemoryHijacking
 			AnsiConsole.MarkupLine("selected process: ".AsColor(StateColor.Info) + selectedProcess);
 
 
-			var app = new CommandApp();
-
-			app.Configure(config =>
+			var commands = new List<Command>()
 			{
-				config.AddCommand<SearchInMemoryCommand>("search");
-			});
+				new Command(1, "search"),
+				new Command(2, "read"),
+				new Command(3, "write"),
+			};
 
-			await app.RunAsync(args);
+			commands.Add(new Command(0, "exit"));
+
+			var exite = false;
+
+			do
+			{
+				var command = Prompt.Choose(commands, "select task");
+
+				switch (command.Id)
+				{
+
+					case 0:
+						exite = true;
+						break;
+				}
+			} while (!exite);
+
+			// var app = new CommandApp();
+			//
+			// app.Configure(config => { config.AddCommand<SearchInMemoryCommand>("search"); });
+			//
+			// await app.RunAsync(args);
 
 			// Console.WriteLine(fruit);
 			// await CoconaLiteApp.RunAsync<Program>(args);
@@ -137,29 +142,29 @@ namespace MemoryHijacking
 			public static implicit operator string(ProcessQResult result) => result.ToString();
 		};
 
-		[Command(Description = "find a application")]
-		public void FindApp([Argument] string processName)
-		{
-			var pId = _mem.GetProcIdFromName("ConsoleApp1");
-
-			if (!_mem.OpenProcess(pId))
-			{
-				Console.WriteLine("process not found");
-			}
-		}
-
-		[Command(Description = "find value in memory")]
-		public void FindValue(
-			[Argument(Description = "process name")]
-			string processName
-		)
-		{
-			var pId = _mem.GetProcIdFromName("ConsoleApp1");
-
-			if (!_mem.OpenProcess(pId))
-			{
-				Console.WriteLine("process not found");
-			}
-		}
+		// [Command(Description = "find a application")]
+		// public void FindApp([Argument] string processName)
+		// {
+		// 	var pId = _mem.GetProcIdFromName("ConsoleApp1");
+		//
+		// 	if (!_mem.OpenProcess(pId))
+		// 	{
+		// 		Console.WriteLine("process not found");
+		// 	}
+		// }
+		//
+		// [Command(Description = "find value in memory")]
+		// public void FindValue(
+		// 	[Argument(Description = "process name")]
+		// 	string processName
+		// )
+		// {
+		// 	var pId = _mem.GetProcIdFromName("ConsoleApp1");
+		//
+		// 	if (!_mem.OpenProcess(pId))
+		// 	{
+		// 		Console.WriteLine("process not found");
+		// 	}
+		// }
 	}
 }
