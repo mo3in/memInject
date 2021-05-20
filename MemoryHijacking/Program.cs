@@ -7,7 +7,9 @@ using System.Threading.Tasks;
 using Cocona;
 using Memory;
 using MemoryHijacking;
+using MemoryHijacking.Commands;
 using Spectre.Console;
+using Spectre.Console.Cli;
 
 namespace MemoryHijacking
 {
@@ -27,7 +29,7 @@ namespace MemoryHijacking
 				new TextPrompt<string>("[grey][[Optional]][/] search by app name/id").AllowEmpty()
 			);
 
-			int processId = -1;
+			ProcessQResult selectedProcess = null;
 			if (!string.IsNullOrWhiteSpace(processQ))
 			{
 				var results = FindProcessesByQuery(processQ);
@@ -39,33 +41,42 @@ namespace MemoryHijacking
 				}
 				else
 				{
-					var processName = AnsiConsole.Prompt(
-						new SelectionPrompt<string>()
+					selectedProcess = AnsiConsole.Prompt(
+						new SelectionPrompt<ProcessQResult>()
 							.Title(Txt.SelectProcessId.AsColor(StateColor.Info))
 							.MoreChoicesText(results.TxtTotalCount())
 							.PageSize(10)
-							.AddChoices(results.Select(x => x.ToString()))
+							.AddChoices(results.Select(x => x))
 					);
-
-					var selected = results.FirstOrDefault(x =>
-						x.Name.Equals(processName, StringComparison.OrdinalIgnoreCase)
-					);
-
-					if (selected != null)
-					{
-						processId = selected.Id;
-					}
 				}
 			}
+			else
+			{
+				selectedProcess = AnsiConsole.Prompt(
+					new SelectionPrompt<ProcessQResult>()
+						.Title(Txt.SelectProcessId.AsColor(StateColor.Info))
+						.PageSize(10)
+						.AddChoices(_processes.Select(x => new ProcessQResult(x.Id, x.ProcessName, 0, 0)))
+				);
+			}
+
+			if (selectedProcess == null)
+			{
+				AnsiConsole.MarkupLine("process not found".AsColor(StateColor.Danger));
+				return;
+			}
+
+			AnsiConsole.MarkupLine("selected process: ".AsColor(StateColor.Info) + selectedProcess);
 
 
-			// var fruit = AnsiConsole.Prompt(
-			//     new SelectionPrompt<string>()
-			//         .Title("What's your [green]favorite fruit[/]?")
-			//         .PageSize(10)
-			//         // .MoreChoicesText("[grey](Move up and down to reveal more fruits)[/]")
-			//         .AddChoices(_processes.Select(x => ))
-			// );
+			var app = new CommandApp();
+
+			app.Configure(config =>
+			{
+				config.AddCommand<SearchInMemoryCommand>("search");
+			});
+
+			await app.RunAsync(args);
 
 			// Console.WriteLine(fruit);
 			// await CoconaLiteApp.RunAsync<Program>(args);
